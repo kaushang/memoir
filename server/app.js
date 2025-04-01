@@ -19,7 +19,7 @@ mongoose
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // app.set("view engine", "ejs");
-// app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "/client/dist")));
 app.use(cookieParser());
 
 app.get("/api/home", isLoggedIn, async (req, res) => {
