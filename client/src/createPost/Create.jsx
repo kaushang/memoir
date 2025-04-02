@@ -1,48 +1,70 @@
 import React, { useEffect } from "react";
 import Nav from "../Nav";
 import Post from "../home/Post";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
+import { useAuth } from "../AuthContext";
 
 export default function Create() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const postBtn = useRef(null);
-  const { posts, user } = location.state || {};
   const [post, setPost] = useState("");
-  const [postsArray, setPostsArray] = useState(posts);
+  const [postsArray, setPostsArray] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (isAuthenticated === false) {
+      navigate("/");
+    }
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     const fetchPostData = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch("/api/post");
         if (response.ok) {
           const data = await response.json();
           setPostsArray(data.posts);
+        } else if (response.status >=400 ) {
+          // Unauthorized - redirect to landing
+          navigate("/");
         }
       } catch (error) {
         console.error("Error fetching posts:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchPostData();
-  }, []);
+    if (isAuthenticated) {
+      fetchPostData();
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (event) => {
     setPost(event.target.value);
   };
+  
   useEffect(() => {
-    if (post === "") {
-      postBtn.current.classList.add("disable");
-      postBtn.current.setAttribute("disabled", "true");
-    } else {
-      postBtn.current.classList.remove("disable");
-      postBtn.current.removeAttribute("disabled");
+    if (postBtn.current) {
+      if (post === "") {
+        postBtn.current.classList.add("disable");
+        postBtn.current.setAttribute("disabled", "true");
+      } else {
+        postBtn.current.classList.remove("disable");
+        postBtn.current.removeAttribute("disabled");
+      }
     }
   }, [post]);
 
   async function createPost(event) {
     event.preventDefault();
-    if (post === "") return;
+    if (post === "" || !isAuthenticated) return;
+    
     const content = post;
     try {
       const response = await fetch("/api/post", {
@@ -54,10 +76,12 @@ export default function Create() {
       const data = await response.json();
 
       if (response.ok) {
-        console.log("API Response:", data.posts)
-        // console.log(data.posts);
+        console.log("API Response:", data.posts);
         setPostsArray([...data.posts]);
         setPost("");
+      } else if (response.status === 401) {
+        // Unauthorized - redirect to landing
+        navigate("/");
       }
     } catch (error) {
       console.error("Error creating post:", error);
@@ -70,6 +94,19 @@ export default function Create() {
       postsArray.filter((post) => post._id !== deletedPostId)
     );
   };
+
+  // Show loading while checking authentication
+  if (isAuthenticated === null || isLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <Nav />
+        <div className="main-cont">
+          <p className="loading">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div
@@ -113,18 +150,19 @@ export default function Create() {
               <p className="sub-heading">Your posts</p>
             )}
 
-            {[...(postsArray || [])].reverse().map((element, index) => {
-              const isLiked = (element.likes || []).includes(user._id);
+            {postsArray.slice().reverse().map((element, index) => {
+              const currentUser = user || {};
+              const isLiked = element.likes && currentUser._id ? element.likes.includes(currentUser._id) : false;
+              
               return (
                 <Post
                   page="create"
                   key={index}
-                  user={user}
+                  user={currentUser}
                   postData={element}
                   initialComments={element.comments?.length || 0}
                   initialLikes={(element.likes || []).length}
-                  // initialLikes={element.likes?.length}
-                  isLiked={!!isLiked}
+                  isLiked={isLiked}
                   onPostDelete={handlePostDelete}
                 />
               );

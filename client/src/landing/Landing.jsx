@@ -10,14 +10,25 @@ function Landing() {
   const navigate = useNavigate();
   const [showSignUp, setShowSignUp] = useState(true);
 
+  // Redirect authenticated users to home page
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated === true) {
       navigate("/home");
     }
   }, [isAuthenticated, navigate]);
 
+  // Simple loading state while checking authentication
   if (isAuthenticated === null) {
-    return <div>Not authenticated</div>;
+    return (
+      <div className="auth">
+        <nav>
+          <h1 id="logo" className="tag-line">memoir</h1>
+        </nav>
+        <div className="form-section">
+          <div className="loading-message">Loading...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -32,9 +43,7 @@ function Landing() {
           <p id="site-name">memoir</p>
           <p className="tag-line">Your thoughts, Your space</p>
         </div>
-        {isAuthenticated === null ? (
-          <div className="loading-message">Loading...</div> // Display loading within the form section
-        ) : showSignUp ? (
+        {showSignUp ? (
           <SignUpForm switchForm={() => setShowSignUp(false)} />
         ) : (
           <LogInForm switchForm={() => setShowSignUp(true)} />

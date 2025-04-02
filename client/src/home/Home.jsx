@@ -10,10 +10,13 @@ export default function Home() {
   const [user, setUser] = useState(null);
   // all posts
   const [posts, setPosts] = useState([]);
+  // loading state
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch("/api/home", {
           method: "GET",
           headers: {
@@ -28,50 +31,59 @@ export default function Home() {
           setPosts(data.posts);
         } else {
           console.error("Error fetching data:", data.message);
+          // Redirect to login if unauthorized
+          if (response.status === 401) {
+            navigate("/");
+          }
         }
       } catch (error) {
         console.error(error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [navigate]);
 
   const handlePostDelete = (deletedPostId) => {
-    setPosts((posts) => posts.filter((post) => post._id !== deletedPostId));
+    setPosts((prevPosts) => prevPosts.filter((post) => post._id !== deletedPostId));
   };
-  return (
-    <>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        <Nav page={"home"} />
 
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <Nav page={"home"} />
         <div className="main-cont">
-          {user || posts.length > 0 ? (
-            posts
-              .slice()
-              .reverse()
-              .map((element, index) => (
-                <Post
-                page="home"
-                  key={index}
-                  user={user}
-                  postData={element}
-                  initialComments={element.comments.length}
-                  initialLikes={element.likes.length}
-                  isLiked={element.likes.includes(user._id)}
-                  onPostDelete={handlePostDelete}
-                />
-              ))
-          ) : (
-            <p className="loading">Loading posts...</p>
-          )}
+          <p className="loading">Loading posts...</p>
         </div>
       </div>
-    </>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <Nav page={"home"} />
+      <div className="main-cont">
+        {posts.length > 0 ? (
+          posts
+            .slice()
+            .reverse()
+            .map((element, index) => (
+              <Post
+                page="home"
+                key={index}
+                user={user}
+                postData={element}
+                initialComments={element.comments ? element.comments.length : 0}
+                initialLikes={element.likes ? element.likes.length : 0}
+                isLiked={user && element.likes ? element.likes.includes(user._id) : false}
+                onPostDelete={handlePostDelete}
+              />
+            ))
+        ) : (
+          <p>No posts available. Create your first post!</p>
+        )}
+      </div>
+    </div>
   );
 }
